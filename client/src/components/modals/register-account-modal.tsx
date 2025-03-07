@@ -1,4 +1,3 @@
-// client/src/components/modals/connect-account-modal.tsx
 "use client";
 import { useRouter } from "next/navigation";
 import { useModalStore } from "@/store/zustand";
@@ -18,68 +17,67 @@ import { Loader2 } from "lucide-react";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
-async function googleSignIn(): Promise<void> {
-  // Redirige al flujo de autenticación de Google
-  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
-}
-
-async function loginUser(email: string, password: string): Promise<void> {
+async function registerUser(
+  email: string,
+  password: string,
+  displayName: string
+): Promise<void> {
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+    `${process.env.NEXT_PUBLIC_API_URL}/auth/register`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // Envía las cookies necesarias
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, displayName }),
     }
   );
+
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || "Error al iniciar sesión");
+    throw new Error(error.error || "Error al registrar usuario");
   }
+
   window.location.href = "/dashboard/";
 }
 
-export function ConnectAccountModal() {
+export function RegisterAccountModal() {
   const router = useRouter();
   const [isAgreed, setIsAgreed] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const modalKey = "connectAccountModal";
+  const [displayName, setDisplayName] = useState("");
+  const modalKey = "registerAccountModal";
   const { isOpen, closeModal, openModal } = useModalStore();
 
-  const googleMutation = useMutation({ mutationFn: googleSignIn });
-  const loginMutation = useMutation({
-    mutationFn: () => loginUser(email, password),
+  const registerMutation = useMutation({
+    mutationFn: () => registerUser(email, password, displayName),
     onSuccess: () => {
-      toast.success("Inicio de sesión exitoso");
+      toast.success("Registro exitoso");
       closeModal(modalKey);
       router.replace("/dashboard/");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Error desconocido al iniciar sesión");
+      toast.error(error.message || "Error desconocido al registrar usuario");
     },
   });
 
-  const handleGoogleSignIn = async () => {
-    if (isAgreed) {
-      googleMutation.mutate();
-    } else {
-      toast.error("Debes aceptar los términos y condiciones");
-    }
-  };
-
-  const handleLogin = async () => {
-    if (!email || !password) {
-      toast.error("Por favor, ingresa tu correo y contraseña");
+  const handleRegister = async () => {
+    if (!email || !password || !displayName) {
+      toast.error("Por favor, completa todos los campos");
       return;
     }
-    loginMutation.mutate();
+
+    if (!isAgreed) {
+      toast.error("Debes aceptar los términos y condiciones");
+      return;
+    }
+
+    registerMutation.mutate();
   };
 
-  const handleRegisterRedirect = () => {
+  const handleLoginRedirect = () => {
     closeModal(modalKey);
-    openModal("registerAccountModal");
+    openModal("connectAccountModal");
   };
 
   return (
@@ -90,70 +88,70 @@ export function ConnectAccountModal() {
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Iniciar Sesión</DialogTitle>
+          <DialogTitle>Crear una cuenta</DialogTitle>
           <DialogDescription>
-            Selecciona tu método de autenticación
+            Completa tus datos para registrarte
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
-          <Label>Email</Label>
+          <Label htmlFor="displayName">Nombre</Label>
           <Input
+            id="displayName"
+            type="text"
+            placeholder="Tu nombre"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
+
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
             type="email"
             placeholder="correo@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
 
-          <Label>Contraseña</Label>
+          <Label htmlFor="password">Contraseña</Label>
           <Input
+            id="password"
             type="password"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
 
+          <div className="flex items-center gap-2 mt-4">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={isAgreed}
+              onChange={(e) => setIsAgreed(e.target.checked)}
+            />
+            <Label htmlFor="terms">Acepto los términos y condiciones</Label>
+          </div>
+
           <Button
-            onClick={handleLogin}
-            disabled={loginMutation.isPending}
+            onClick={handleRegister}
+            disabled={registerMutation.isPending}
             className="w-full"
           >
-            {loginMutation.isPending ? (
+            {registerMutation.isPending ? (
               <Loader2 className="animate-spin mr-2" />
             ) : null}
-            Iniciar sesión
+            Registrarse
           </Button>
-        </div>
-
-        <Button
-          onClick={handleGoogleSignIn}
-          disabled={googleMutation.isPending}
-          className="w-full"
-          variant="outline"
-        >
-          {googleMutation.isPending ? (
-            <Loader2 className="animate-spin mr-2" />
-          ) : null}
-          Iniciar con Google
-        </Button>
-
-        <div className="flex items-center gap-2 mt-2">
-          <input
-            type="checkbox"
-            checked={isAgreed}
-            onChange={(e) => setIsAgreed(e.target.checked)}
-          />
-          <Label>Acepto los términos y condiciones</Label>
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
           <div className="text-sm text-gray-500">
-            ¿No tienes una cuenta?{" "}
+            ¿Ya tienes una cuenta?{" "}
             <button
               className="text-blue-600 hover:underline"
-              onClick={handleRegisterRedirect}
+              onClick={handleLoginRedirect}
             >
-              Registrarse
+              Iniciar sesión
             </button>
           </div>
         </DialogFooter>
