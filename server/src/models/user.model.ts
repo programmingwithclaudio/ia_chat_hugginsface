@@ -1,7 +1,8 @@
 // server/models/user.model.ts
-import { Document, model, Schema } from "mongoose";
+import { Document, model, Schema, Types } from "mongoose";
 
 export interface IUser extends Document {
+  _id: Types.ObjectId;
   externalId?: string; // ID de Google, Facebook, etc.
   authProvider: "manual" | "google"; // Indica el tipo de autenticación
   email: string;

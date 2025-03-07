@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import { connectToDatabase } from "./config/mongo.db.js";
 import authRoutes from "./routes/auth.js";
+import chatRoutes from "./routes/chat.routes.js";
 import session from "express-session";
 
 const app = express();
@@ -39,6 +40,7 @@ app.use(
 
 // Rutas
 app.use("/auth", authRoutes);
+app.use("/api", chatRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("API is running...");
