@@ -1,34 +1,56 @@
 // server/routes/chat.routes.ts
 import { Router } from "express";
-import express from "express"; // Importar express para el tipo RequestHandler
-import { ChatController } from "../controllers/chat.controller.js";
-import { uploadMiddleware } from "../controllers/chat.controller.js";
+import {
+  ChatController,
+  uploadMiddleware,
+} from "../controllers/chat.controller.js";
+import { isAuthenticated } from "../middleware/auth.js";
+import {
+  validateChatExists,
+  validateChatId,
+  hasAccess,
+} from "../middleware/chat.js";
+import {
+  validateMessageInput,
+  handleInputErrors,
+} from "../middleware/validation.js";
 
 const router = Router();
 
-// Configuración correcta de rutas con tipado explícito
-router.get("/chats", ChatController.getAllChats as express.RequestHandler);
-router.get(
-  "/chats/:chatId",
-  ChatController.getChatById as express.RequestHandler
-);
-router.post("/chats", ChatController.createChat as express.RequestHandler);
-router.delete(
-  "/chats/:chatId",
-  ChatController.deleteChat as express.RequestHandler
-);
-router.delete(
-  "/chats",
-  ChatController.deleteAllChats as express.RequestHandler
-);
+// Apply authentication middleware to all routes
+router.use(isAuthenticated);
+
+// Chat parameter validation
+router.param("chatId", validateChatId);
+router.param("chatId", validateChatExists);
+router.param("chatId", hasAccess);
+
+// Chat routes
+router.get("/", ChatController.getAllChats);
+
 router.post(
-  "/chats/:chatId/messages",
-  ChatController.sendMessage as express.RequestHandler
+  "/",
+  validateMessageInput,
+  handleInputErrors,
+  ChatController.createChat
 );
+
+router.get("/:chatId", ChatController.getChatById);
+
+router.delete("/:chatId", ChatController.deleteChat);
+
+router.delete("/", ChatController.deleteAllChats);
+
+// Message routes
 router.post(
-  "/upload",
-  uploadMiddleware as express.RequestHandler,
-  ChatController.uploadDocument as express.RequestHandler
+  "/:chatId/messages",
+  validateMessageInput,
+  handleInputErrors,
+  ChatController.sendMessage
 );
+
+// Document upload route
+router.post("/upload", uploadMiddleware.single("file"), ChatController.uploadDocument);
+
 
 export default router;
