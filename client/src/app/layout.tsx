@@ -6,6 +6,7 @@ import { ReactQueryProvider } from "@/providers/tanstack/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ModalProvider } from "@/providers/modals/modal-providers";
 import { HeaderWrapper } from "@/components/HeaderWrapper";
+import { ThemeProvider } from "@/providers/dashboard/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChatGPT Clone",
-  description: "A Next.js 15 application that replicates ChatGPT interface",
+  title: "OakChat AI",
+  description: "A Next.js 15 application that OakChat AI",
 };
 
 export default function RootLayout({
@@ -28,14 +29,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ReactQueryProvider>
-          <HeaderWrapper />
-          <ModalProvider>{children}</ModalProvider>
-          <Toaster />
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <HeaderWrapper />
+            <ModalProvider>{children}</ModalProvider>
+            <Toaster />
+          </ThemeProvider>
         </ReactQueryProvider>
       </body>
     </html>

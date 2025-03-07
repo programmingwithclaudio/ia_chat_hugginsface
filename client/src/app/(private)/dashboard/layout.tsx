@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/Sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Loader2 } from "lucide-react";
+import { ModeToggle } from "@/components/shared/theme-toggle";
 
 export default function DashboardLayout({
   children,
@@ -36,22 +37,30 @@ export default function DashboardLayout({
   }
 
   if (!user) return null;
+  // Mapeo de rutas a títulos
+  const titles: Record<string, string> = {
+    "/dashboard/home": "Home",
+    "/dashboard/chats": "Chats",
+    "/dashboard/profile": "Profile",
+  };
 
+  const pageTitle = titles[pathname] || "OakChat AI";
+
+  // In DashboardLayout component
   return (
     <div className="h-screen w-full overflow-hidden">
       <SidebarProvider>
-        <div className="grid grid-cols-[minmax(16rem,auto)_1fr] h-full w-full">
-          {" "}
-          {/* Usamos CSS Grid */}
-          {/* Sidebar con ancho fijo */}
-          <AppSidebar className="w-64 flex-shrink-0" />
-          {/* Contenido principal */}
-          <main className="flex flex-col min-w-0">
-            <div className="p-2 flex items-center border-b h-15 bg-background">
-              <SidebarTrigger className="mr-4" />
-              <h1 className="text-xl font-semibold">ChatGPT Clone</h1>
+        {/* Replace the fixed grid with a more dynamic layout */}
+        <div className="flex h-full w-full">
+          <AppSidebar className="h-full" /> {/* Remove the fixed w-64 */}
+          <main className="flex flex-col flex-1 min-w-0">
+            <div className="p-2 flex items-center justify-between border-b h-15 bg-background">
+              <div className="flex items-center">
+                <SidebarTrigger className="mr-4" />
+                <h1 className="text-xl font-semibold">{pageTitle}</h1>
+              </div>
+              <ModeToggle /> {/* Colocado a la derecha */}
             </div>
-
             <div className="flex-1 overflow-auto p-5 bg-background">
               {children}
             </div>

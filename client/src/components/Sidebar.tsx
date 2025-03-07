@@ -11,13 +11,18 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { MessageSquare, Plus, Settings, User } from "lucide-react";
+import { Home, MessageSquare, Plus, User } from "lucide-react";
 import { UserButton } from "./shared/user-button";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 // Define los elementos del menú
 const menuItems = [
+  {
+    title: "Home",
+    url: "/dashboard/home",
+    icon: Home,
+  },
   {
     title: "Chats",
     url: "/dashboard/chats",
@@ -27,11 +32,6 @@ const menuItems = [
     title: "Profile",
     url: "/dashboard/profile",
     icon: User,
-  },
-  {
-    title: "Settings",
-    url: "/dashboard/settings",
-    icon: Settings,
   },
 ];
 
@@ -44,7 +44,11 @@ export function AppSidebar({ className }: { className?: string }) {
   };
 
   return (
-    <div className={`bg-gray-800 text-white h-full ${className || ""}`}>
+    <div
+      className={`bg-sidebar text-sidebar-foreground h-full transition-colors duration-200 ${
+        className || ""
+      }`}
+    >
       <Sidebar className="h-full border-r shrink-0">
         <SidebarHeader className="p-4 border-b">
           <div className="flex items-center justify-between">
@@ -52,7 +56,7 @@ export function AppSidebar({ className }: { className?: string }) {
               onClick={() => handleNavigation("/dashboard/chats")}
               className="font-bold text-lg"
             >
-              ChatGPT Clone
+              OakChat AI
             </button>
           </div>
         </SidebarHeader>
