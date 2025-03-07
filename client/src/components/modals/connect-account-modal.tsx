@@ -36,7 +36,7 @@ async function loginUser(email: string, password: string): Promise<void> {
     const error = await response.json();
     throw new Error(error.error || "Error al iniciar sesión");
   }
-  window.location.href = "/dashboard";
+  window.location.href = "/dashboard/";
 }
 
 export function ConnectAccountModal() {
@@ -53,7 +53,7 @@ export function ConnectAccountModal() {
     onSuccess: () => {
       toast.success("Inicio de sesión exitoso");
       closeModal(modalKey);
-      router.replace("/dashboard");
+      router.replace("/dashboard/");
     },
     onError: (error: Error) => {
       toast.error(error.message || "Error desconocido al iniciar sesión");
