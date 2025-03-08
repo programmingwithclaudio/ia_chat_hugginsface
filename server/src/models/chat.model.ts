@@ -39,12 +39,12 @@ const MessageSchema = new Schema({
 
 const ChatSchema = new Schema(
   {
-    uuid: { type: String, default: uuidv4, unique: true, index: true }, // Agregar UUID único
+    uuid: { type: String, default: uuidv4, unique: true, index: true }, // Índice en uuid
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
+      index: true, // Índice en userId
     },
     title: { type: String, required: true, default: "Nueva conversación" },
     messages: [MessageSchema],
@@ -55,6 +55,6 @@ const ChatSchema = new Schema(
 );
 
 // Índices para mejorar el rendimiento de consultas
-ChatSchema.index({ userId: 1, createdAt: -1 });
+ChatSchema.index({ uuid: 1, userId: 1 });
 
 export default model<IChat>("Chat", ChatSchema);

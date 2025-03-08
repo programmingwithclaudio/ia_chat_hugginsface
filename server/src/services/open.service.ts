@@ -7,8 +7,11 @@ export class OpenAIService {
 
   constructor() {
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      baseURL: process.env.OPENAI_BASE_URL || "http://127.0.0.1:39281/v1",
+      // apiKey: process.env.OPENAI_API_KEY,
+      apiKey: "local-no-key-required", // "not-needed" - local-no-key-required - "sk-no-key-required"
+      // baseURL: process.env.OPENAI_BASE_URL || "http://127.0.0.1:39281/v1",
+      baseURL: "http://127.0.0.1:39281/v1",
+      timeout: 30000, // 30 segundos de timeout
     });
   }
 
@@ -25,11 +28,11 @@ export class OpenAIService {
     // Se retorna directamente la respuesta de la API sin tipado explícito
     return await this.openai.chat.completions.create({
       model:
-        process.env.OPENAI_MODEL ||
-        "unsloth:Llama-3.2-3B-Instruct-GGUF:Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        // process.env.OPENAI_MODEL ||
+        "unsloth:DeepSeek-R1-Distill-Qwen-1.5B-GGUF:DeepSeek-R1-Distill-Qwen-1.5B-Q2_K.gguf",
       messages,
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 7000,
       stream,
     });
   }
@@ -57,8 +60,8 @@ export class OpenAIService {
 
     const response = await this.openai.chat.completions.create({
       model:
-        process.env.OPENAI_MODEL ||
-        "unsloth:Llama-3.2-3B-Instruct-GGUF:Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        // process.env.OPENAI_MODEL ||
+        "unsloth:DeepSeek-R1-Distill-Qwen-1.5B-GGUF:DeepSeek-R1-Distill-Qwen-1.5B-Q2_K.gguf",
       messages: [
         {
           role: "system",
@@ -101,8 +104,8 @@ export class OpenAIService {
 
     const response = await this.openai.chat.completions.create({
       model:
-        process.env.OPENAI_MODEL ||
-        "unsloth:Llama-3.2-3B-Instruct-GGUF:Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        // process.env.OPENAI_MODEL ||
+        "unsloth:DeepSeek-R1-Distill-Qwen-1.5B-GGUF:DeepSeek-R1-Distill-Qwen-1.5B-Q2_K.gguf",
       messages: [
         {
           role: "system",

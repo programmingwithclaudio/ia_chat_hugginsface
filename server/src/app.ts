@@ -40,7 +40,7 @@ app.use(
 
 // Rutas
 app.use("/auth", authRoutes);
-app.use("/api", chatRoutes);
+app.use("/chat", chatRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("API is running...");

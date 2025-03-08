@@ -22,8 +22,8 @@ router.use(isAuthenticated);
 
 // Chat parameter validation
 router.param("chatId", validateChatId);
-router.param("chatId", validateChatExists);
 router.param("chatId", hasAccess);
+router.param("chatId", validateChatExists);
 
 // Chat routes
 router.get("/", ChatController.getAllChats);
@@ -50,7 +50,10 @@ router.post(
 );
 
 // Document upload route
-router.post("/upload", uploadMiddleware.single("file"), ChatController.uploadDocument);
-
+router.post(
+  "/upload",
+  uploadMiddleware.single("file"),
+  ChatController.uploadDocument
+);
 
 export default router;

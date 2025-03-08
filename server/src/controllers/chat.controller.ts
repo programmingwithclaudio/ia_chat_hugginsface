@@ -1,10 +1,12 @@
 // server/controllers/chat.controller.ts
 import type { NextFunction, Request, RequestHandler, Response } from "express";
+import OpenAIService from "../services/open.service.js";
 import Chat, { IChat, IMessage } from "../models/chat.model.js";
 import { v4 as uuidv4 } from "uuid";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
+import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -179,10 +181,8 @@ export class ChatController {
         return;
       }
 
-      const chat = await Chat.findOne({
-        uuid: chatId,
-        userId: req.user.id,
-      });
+      // Acceder a `req.chat` sin errores de TypeScript
+      const chat = req.chat;
 
       if (!chat) {
         res.status(404).json({ error: "Conversación no encontrada" });
@@ -197,14 +197,68 @@ export class ChatController {
       };
 
       chat.messages.push(newMessage);
-      await chat.save();
 
-      // Here you would integrate with an AI service to get the assistant's response
-      // and add it to the chat messages
+      // Mapear mensajes para OpenAI
+      const messagesForAI: ChatCompletionMessageParam[] = chat.messages.map(
+        (msg) => {
+          // Validar roles permitidos
+          const allowedRoles = ["system", "user", "assistant", "function"];
+          if (!allowedRoles.includes(msg.role)) {
+            throw new Error(`Rol de mensaje inválido: ${msg.role}`);
+          }
+
+          // For function messages, ensure name is provided
+          if (msg.role === "function") {
+            if (!msg.name) {
+              throw new Error("Function messages must have a name");
+            }
+            return {
+              role: msg.role,
+              content: msg.content,
+              name: msg.name, // This is now required, not optional
+            };
+          }
+
+          // For other message types
+          return {
+            role: msg.role as "system" | "user" | "assistant",
+            content: msg.content,
+          };
+        }
+      );
+
+      // Llamar al servicio de OpenAI
+      const aiResponse = await OpenAIService.generateChatCompletion(
+        messagesForAI
+      );
+
+      // Extraer el contenido de la respuesta
+      const aiContent = aiResponse.choices[0]?.message?.content;
+
+      if (aiContent) {
+        const aiMessage: IMessage = {
+          id: uuidv4(),
+          role: "assistant",
+          content: aiContent,
+          createdAt: new Date(),
+        };
+
+        chat.messages.push(aiMessage);
+      }
+
+      await chat.save();
 
       res.json({
         message: "Mensaje enviado exitosamente",
         newMessage,
+        aiResponse: aiContent
+          ? {
+              id: chat.messages[chat.messages.length - 1].id,
+              role: "assistant",
+              content: aiContent,
+              createdAt: chat.messages[chat.messages.length - 1].createdAt,
+            }
+          : null,
       });
     } catch (error) {
       console.error("Error sending message:", error);
