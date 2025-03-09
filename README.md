@@ -1,4 +1,4 @@
-# IA Chat App with LangChain 🔥🚀
+# IA Chat App with Hugging Face
 
 [![Status: En Desarrollo](https://img.shields.io/badge/status-en_desarrollo-orange)](https://github.com/programmingwithclaudio/ia_chat_langchain)
 [![Fecha Límite](https://img.shields.io/badge/plazo-15%2F03%2F2024-red)](https://github.com/programmingwithclaudio/ia_chat_langchain)
