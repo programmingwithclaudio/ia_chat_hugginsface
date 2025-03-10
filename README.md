@@ -48,5 +48,17 @@ gantt
 1. Clona el repositorio
 2. Instala dependencias: `npm install`
 3. Configura variables de entorno (.env)
-4. Inicia servidores: `docker-compose up -d`
+4. Inicia servidores de `mongo`, `redis` y la `IA`: `docker-compose up -d`
 5. Ejecuta la app: `npm run dev`
+
+- **Nota:** Images en servidores :
+  - [utils-base-de-datos](https://github.com/programmingwithclaudio/utils-developers)
+  - ```bash
+    docker run -it -d --name cortex -v cortex_data:/root/cortexcpp -p 39281:39281 menloltd/cortex
+    docker exec -it cortex /usr/local/bin/cortex run unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF
+    # opcion 4 de modelo Llama
+    docker exec -it cortex /usr/local/bin/cortex ps
+    # activar
+    docker exec -it cortex /usr/local/bin/cortex models start unsloth:Llama-3.2-3B-Instruct-GGUF:Llama-3.2-3B-Instruct-Q4_K_M.gguf
+    ```
+  - Recomendaciones: Si sabes configura GPU, pero si estas empezando a integrar servicios de ia en el desarrollo utiliza el procesador y la RAM por defecto como en el `bash`.
