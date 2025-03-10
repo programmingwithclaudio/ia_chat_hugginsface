@@ -199,7 +199,7 @@ export class ChatController {
   ): Promise<void> => {
     try {
       const chatId = req.params.chatId;
-      const { content, role = "user" } = req.body;
+      const { content } = req.body;
 
       if (!content) {
         res
@@ -208,71 +208,49 @@ export class ChatController {
         return;
       }
 
-      // Acceder a `req.chat` sin errores de TypeScript
-      const chat = req.chat;
+      // Se asume que el middleware ha cargado previamente la conversación en req.chat
+      const chatFromReq = req.chat;
+      if (!chatFromReq) {
+        res.status(404).json({ error: "Conversación no encontrada" });
+        return;
+      }
+
+      const chat: IChat = chatFromReq as IChat; // Forzamos la conversión, ya que se verificó que no es undefined.
 
       if (!chat) {
         res.status(404).json({ error: "Conversación no encontrada" });
         return;
       }
 
+      // Agregar el nuevo mensaje del usuario al historial de la conversación
       const newMessage: IMessage = {
         id: uuidv4(),
-        role: role,
-        content: content,
+        role: "user",
+        content,
         createdAt: new Date(),
       };
-
       chat.messages.push(newMessage);
 
-      // Preparar mensajes para OpenAI, incluyendo el contexto del documento si está disponible
-      let messagesForAI: ChatCompletionMessageParam[] = [];
-
-      // Agregar contexto del documento como mensaje del sistema si existe
+      // Construir el prompt para Llama
+      // Se integra el contexto del documento y el historial completo de mensajes
+      let promptForAI = "";
       if (chat.documentContext) {
-        messagesForAI.push({
-          role: "system",
-          content: `El siguiente es el contexto de un documento: ${chat.documentContext}\n\nResponde a las preguntas del usuario basándote en este documento cuando sea relevante.`,
-        });
+        promptForAI += `[SISTEMA] Contexto del documento: ${chat.documentContext}\n\n`;
       }
-
-      // Agregar historial de conversación
-      const messageHistory = chat.messages.map((msg) => {
-        // Validar roles permitidos
-        const allowedRoles = ["system", "user", "assistant", "function"];
-        if (!allowedRoles.includes(msg.role)) {
-          throw new Error(`Rol de mensaje inválido: ${msg.role}`);
-        }
-
-        // Para mensajes de función, asegurarse de que se proporcione un nombre
-        if (msg.role === "function") {
-          if (!msg.name) {
-            throw new Error("Function messages must have a name");
-          }
-          return {
-            role: msg.role,
-            content: msg.content,
-            name: msg.name, // This is now required, not optional
-          };
-        }
-
-        // Para otros tipos de mensajes
-        return {
-          role: msg.role as "system" | "user" | "assistant",
-          content: msg.content,
-        };
+      chat.messages.forEach((msg) => {
+        promptForAI += `[${msg.role.toUpperCase()}] ${msg.content}\n`;
       });
+      // Se añade la última pregunta y se indica dónde debe comenzar la respuesta
+      promptForAI += `[USUARIO] ${content}\n[ASISTENTE]`;
 
-      // Combinar el contexto del documento con el historial de mensajes
-      messagesForAI = [...messagesForAI, ...messageHistory];
-
-      // Llamar al servicio de OpenAI
-      const aiResponse = await OpenAIService.generateChatCompletion(
-        messagesForAI
-      );
+      // Llamar al servicio de OpenAI con el prompt formateado
+      // En este caso, se envía un único mensaje con el contenido completo del prompt
+      const aiResponse = await OpenAIService.generateChatCompletion([
+        { role: "user", content: promptForAI },
+      ]);
 
       // Extraer el contenido de la respuesta
-      const aiContent = aiResponse.choices[0]?.message?.content;
+      const aiContent = aiResponse.choices[0]?.message?.content || "";
 
       if (aiContent) {
         const aiMessage: IMessage = {
@@ -281,7 +259,6 @@ export class ChatController {
           content: aiContent,
           createdAt: new Date(),
         };
-
         chat.messages.push(aiMessage);
       }
 
@@ -304,11 +281,10 @@ export class ChatController {
       res.status(500).json({ error: "Error al enviar el mensaje" });
     }
   };
-
   /**
    * Upload a document and associate it with a chat
    */
-  static uploadDocument = async (
+  static uploadDocument: RequestHandler = async (
     req: MulterRequest,
     res: Response
   ): Promise<void> => {
@@ -319,20 +295,20 @@ export class ChatController {
       }
 
       const userId = req.user.id;
-      // Get chatId from params (for /:chatId/upload) or body (for /upload)
+      // Obtener chatId desde params o body
       const chatId = req.params.chatId || req.body.chatId;
       const filePath = req.file.path;
 
-      // Read the file
+      // Leer el archivo
       const fileBuffer = fs.readFileSync(filePath);
 
-      // Store in Redis
+      // Almacenar el PDF en Redis
       const fileKey = await PDFService.storePDFInRedis(userId, fileBuffer);
 
-      // Extract text content
+      // Extraer el contenido del PDF
       const textContent = await PDFService.extractTextFromPDF(fileKey);
 
-      // Create document record
+      // Crear registro del documento y limitar el contexto a 1000 caracteres para la preview
       const document = await Document.create({
         userId: new Types.ObjectId(userId),
         filename: req.file.originalname,
@@ -340,25 +316,19 @@ export class ChatController {
         fileKey,
         textContent,
       });
+      const documentId = document.id.toString();
 
-      // Fix: Cast document._id to string explicitly
-      const documentId = document.id.toString(); //_id
-
-      // If chatId is provided, attach the document to an existing chat
       if (chatId) {
         const chat = await Chat.findOne({
           uuid: chatId,
           userId: new Types.ObjectId(userId),
         });
-
         if (!chat) {
           res.status(404).json({ error: "Conversación no encontrada" });
           return;
         }
-
-        // Update the chat with document information
         chat.documentId = documentId;
-        chat.documentContext = textContent.substring(0, 1000) + "..."; // Store a preview
+        chat.documentContext = textContent.substring(0, 1000) + "...";
         await chat.save();
 
         res.json({
@@ -367,29 +337,26 @@ export class ChatController {
           chatId,
         });
       } else {
-        // Create a new chat with the document
         const newChat = await Chat.create({
           userId: new Types.ObjectId(userId),
-          uuid: uuidv4(), // Explicitly set uuid if needed
+          uuid: uuidv4(),
           title: `Documento: ${req.file.originalname}`,
           messages: [],
           documentId,
-          documentContext: textContent.substring(0, 1000) + "...", // Store a preview
+          documentContext: textContent.substring(0, 1000) + "...",
         });
-
-        // Fix: Cast newChat._id to string explicitly
         res.status(201).json({
           message: "Documento subido y nueva conversación creada",
           chat: {
-            id: newChat.id.toString(), //_id
-            uuid: newChat.get("uuid"), // Use get() method to access property
+            id: newChat.id.toString(),
+            uuid: newChat.get("uuid"),
             title: newChat.title,
           },
           documentId,
         });
       }
 
-      // Clean up the temporary file
+      // Eliminar el archivo temporal
       fs.unlinkSync(filePath);
     } catch (error) {
       console.error("Error uploading document:", error);
