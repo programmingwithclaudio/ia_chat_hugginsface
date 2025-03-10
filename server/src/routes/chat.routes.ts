@@ -50,8 +50,16 @@ router.post(
 );
 
 // Document upload route
+// Document upload routes - Fix the path and field name
 router.post(
   "/upload",
+  uploadMiddleware.single("file"), // Change to match the field name in your client
+  ChatController.uploadDocument
+);
+
+// Add a specific chat document upload route
+router.post(
+  "/:chatId/upload",
   uploadMiddleware.single("file"),
   ChatController.uploadDocument
 );

@@ -11,7 +11,7 @@ export class OpenAIService {
       apiKey: "local-no-key-required", // "not-needed" - local-no-key-required - "sk-no-key-required"
       // baseURL: process.env.OPENAI_BASE_URL || "http://127.0.0.1:39281/v1",
       baseURL: "http://127.0.0.1:39281/v1",
-      timeout: 30000, // 30 segundos de timeout
+      timeout: 120000, // 30 segundos de timeout
     });
   }
 
@@ -25,16 +25,27 @@ export class OpenAIService {
     messages: ChatCompletionMessageParam[],
     stream = false
   ): Promise<any> {
-    // Se retorna directamente la respuesta de la API sin tipado explícito
-    return await this.openai.chat.completions.create({
-      model:
-        // process.env.OPENAI_MODEL ||
-        "unsloth:DeepSeek-R1-Distill-Qwen-1.5B-GGUF:DeepSeek-R1-Distill-Qwen-1.5B-Q2_K.gguf",
-      messages,
-      temperature: 0.7,
-      max_tokens: 7000,
-      stream,
-    });
+    try {
+      // Se retorna directamente la respuesta de la API sin tipado explícito
+      return await this.openai.chat.completions.create({
+        model:
+          // process.env.OPENAI_MODEL ||
+          // "unsloth:DeepSeek-R1-Distill-Qwen-1.5B-GGUF:DeepSeek-R1-Distill-Qwen-1.5B-Q2_K.gguf",
+          "unsloth:Llama-3.2-3B-Instruct-GGUF:Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        messages,
+        temperature: 0.7,
+        max_tokens: 7000,
+        stream,
+      });
+    } catch (error) {
+      console.error("Error en OpenAI API:", error);
+
+      if (error instanceof Error) {
+        throw new Error(`Error procesando la solicitud: ${error.message}`);
+      } else {
+        throw new Error("Error desconocido al procesar la solicitud");
+      }
+    }
   }
 
   /**

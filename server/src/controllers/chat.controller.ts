@@ -2,15 +2,23 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import OpenAIService from "../services/open.service.js";
 import Chat, { IChat, IMessage } from "../models/chat.model.js";
+import Document, { IDocument } from "../models/document.model.js";
+import { PDFService } from "../services/pdf.service.js";
 import { v4 as uuidv4 } from "uuid";
-import multer from "multer";
+import multer, { FileFilterCallback } from "multer";
 import fs from "fs";
 import path from "path";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { Types } from "mongoose";
+
+// Define proper types for multer
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (req: Request, file: Express.Multer.File, cb: Function) => {
     const uploadDir = path.join(process.cwd(), "uploads");
     // Ensure directory exists
     if (!fs.existsSync(uploadDir)) {
@@ -18,12 +26,31 @@ const storage = multer.diskStorage({
     }
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+  filename: (req: Request, file: Express.Multer.File, cb: Function) => {
+    // Sanitize the filename
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
+    cb(null, `${Date.now()}-${sanitizedName}`);
   },
 });
 
-export const uploadMiddleware = multer({ storage });
+// Add file filter to only accept PDFs
+const fileFilter = (
+  req: Request,
+  file: Express.Multer.File,
+  cb: FileFilterCallback
+) => {
+  if (file.mimetype === "application/pdf") {
+    cb(null, true);
+  } else {
+    cb(new Error("Solo se permiten archivos PDF") as any);
+  }
+};
+
+export const uploadMiddleware = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+});
 
 export class ChatController {
   /**
@@ -198,34 +225,46 @@ export class ChatController {
 
       chat.messages.push(newMessage);
 
-      // Mapear mensajes para OpenAI
-      const messagesForAI: ChatCompletionMessageParam[] = chat.messages.map(
-        (msg) => {
-          // Validar roles permitidos
-          const allowedRoles = ["system", "user", "assistant", "function"];
-          if (!allowedRoles.includes(msg.role)) {
-            throw new Error(`Rol de mensaje inválido: ${msg.role}`);
-          }
+      // Preparar mensajes para OpenAI, incluyendo el contexto del documento si está disponible
+      let messagesForAI: ChatCompletionMessageParam[] = [];
 
-          // For function messages, ensure name is provided
-          if (msg.role === "function") {
-            if (!msg.name) {
-              throw new Error("Function messages must have a name");
-            }
-            return {
-              role: msg.role,
-              content: msg.content,
-              name: msg.name, // This is now required, not optional
-            };
-          }
+      // Agregar contexto del documento como mensaje del sistema si existe
+      if (chat.documentContext) {
+        messagesForAI.push({
+          role: "system",
+          content: `El siguiente es el contexto de un documento: ${chat.documentContext}\n\nResponde a las preguntas del usuario basándote en este documento cuando sea relevante.`,
+        });
+      }
 
-          // For other message types
+      // Agregar historial de conversación
+      const messageHistory = chat.messages.map((msg) => {
+        // Validar roles permitidos
+        const allowedRoles = ["system", "user", "assistant", "function"];
+        if (!allowedRoles.includes(msg.role)) {
+          throw new Error(`Rol de mensaje inválido: ${msg.role}`);
+        }
+
+        // Para mensajes de función, asegurarse de que se proporcione un nombre
+        if (msg.role === "function") {
+          if (!msg.name) {
+            throw new Error("Function messages must have a name");
+          }
           return {
-            role: msg.role as "system" | "user" | "assistant",
+            role: msg.role,
             content: msg.content,
+            name: msg.name, // This is now required, not optional
           };
         }
-      );
+
+        // Para otros tipos de mensajes
+        return {
+          role: msg.role as "system" | "user" | "assistant",
+          content: msg.content,
+        };
+      });
+
+      // Combinar el contexto del documento con el historial de mensajes
+      messagesForAI = [...messagesForAI, ...messageHistory];
 
       // Llamar al servicio de OpenAI
       const aiResponse = await OpenAIService.generateChatCompletion(
@@ -269,23 +308,47 @@ export class ChatController {
   /**
    * Upload a document and associate it with a chat
    */
-  static uploadDocument: RequestHandler = async (
-    req: Request,
+  static uploadDocument = async (
+    req: MulterRequest,
     res: Response
   ): Promise<void> => {
     try {
       if (!req.file) {
-        res.status(400).json({ error: "No se ha enviado ningún archivo" });
+        res.status(400).json({ error: "No se ha enviado ningún archivo PDF" });
         return;
       }
 
-      const { chatId } = req.body;
+      const userId = req.user.id;
+      // Get chatId from params (for /:chatId/upload) or body (for /upload)
+      const chatId = req.params.chatId || req.body.chatId;
+      const filePath = req.file.path;
+
+      // Read the file
+      const fileBuffer = fs.readFileSync(filePath);
+
+      // Store in Redis
+      const fileKey = await PDFService.storePDFInRedis(userId, fileBuffer);
+
+      // Extract text content
+      const textContent = await PDFService.extractTextFromPDF(fileKey);
+
+      // Create document record
+      const document = await Document.create({
+        userId: new Types.ObjectId(userId),
+        filename: req.file.originalname,
+        fileType: "application/pdf",
+        fileKey,
+        textContent,
+      });
+
+      // Fix: Cast document._id to string explicitly
+      const documentId = document.id.toString(); //_id
 
       // If chatId is provided, attach the document to an existing chat
       if (chatId) {
         const chat = await Chat.findOne({
           uuid: chatId,
-          userId: req.user.id,
+          userId: new Types.ObjectId(userId),
         });
 
         if (!chat) {
@@ -293,37 +356,47 @@ export class ChatController {
           return;
         }
 
-        // Process the document and extract context here
-        // For example, using a PDF library to extract text
-
-        chat.documentId = req.file.filename;
-        chat.documentContext = "Texto extraído del documento"; // Replace with actual extraction
+        // Update the chat with document information
+        chat.documentId = documentId;
+        chat.documentContext = textContent.substring(0, 1000) + "..."; // Store a preview
         await chat.save();
 
         res.json({
           message: "Documento subido y asociado a la conversación",
-          documentId: req.file.filename,
+          documentId,
+          chatId,
         });
       } else {
         // Create a new chat with the document
-        // Process the document and extract context here
-
         const newChat = await Chat.create({
-          userId: req.user.id,
+          userId: new Types.ObjectId(userId),
+          uuid: uuidv4(), // Explicitly set uuid if needed
           title: `Documento: ${req.file.originalname}`,
           messages: [],
-          documentId: req.file.filename,
-          documentContext: "Texto extraído del documento", // Replace with actual extraction
+          documentId,
+          documentContext: textContent.substring(0, 1000) + "...", // Store a preview
         });
 
+        // Fix: Cast newChat._id to string explicitly
         res.status(201).json({
           message: "Documento subido y nueva conversación creada",
-          chat: newChat,
+          chat: {
+            id: newChat.id.toString(), //_id
+            uuid: newChat.get("uuid"), // Use get() method to access property
+            title: newChat.title,
+          },
+          documentId,
         });
       }
+
+      // Clean up the temporary file
+      fs.unlinkSync(filePath);
     } catch (error) {
       console.error("Error uploading document:", error);
-      res.status(500).json({ error: "Error al subir el documento" });
+      res.status(500).json({
+        error: "Error al procesar el documento",
+        details: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 }

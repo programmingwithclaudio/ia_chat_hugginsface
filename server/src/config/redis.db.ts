@@ -3,7 +3,7 @@ import { createClient } from "redis";
 
 // Create Redis client with reconnect strategy
 const redis = createClient({
-  url: process.env.REDIS_URL || "redis://:admin@172.21.0.3:6379",
+  url: process.env.REDIS_URL, //|| "redis://:admin@172.21.0.3:6379",
   socket: {
     reconnectStrategy: (retries) => {
       // Max reconnect attempts
