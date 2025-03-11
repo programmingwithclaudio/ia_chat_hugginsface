@@ -8,6 +8,14 @@ export interface IDocument extends Document {
   fileType: string;
   fileKey: string; // Clave en Redis
   textContent: string;
+  analysis?: {
+    summary: string;
+    documentType: string;
+    entities: string[];
+    dates: string[];
+    keyTerms: string[];
+  };
+  suggestedQuestions?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +33,14 @@ const DocumentSchema = new Schema(
     fileType: { type: String, required: true },
     fileKey: { type: String, required: true },
     textContent: { type: String, required: true },
+    analysis: {
+      summary: String,
+      documentType: String,
+      entities: [String],
+      dates: [String],
+      keyTerms: [String],
+    },
+    suggestedQuestions: [String],
   },
   { timestamps: true }
 );

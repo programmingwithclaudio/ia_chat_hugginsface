@@ -72,7 +72,7 @@ export class OpenAIService {
     const response = await this.openai.chat.completions.create({
       model:
         // process.env.OPENAI_MODEL ||
-        "unsloth:DeepSeek-R1-Distill-Qwen-1.5B-GGUF:DeepSeek-R1-Distill-Qwen-1.5B-Q2_K.gguf",
+        "unsloth:Llama-3.2-3B-Instruct-GGUF:Llama-3.2-3B-Instruct-Q4_K_M.gguf",
       messages: [
         {
           role: "system",
@@ -116,7 +116,7 @@ export class OpenAIService {
     const response = await this.openai.chat.completions.create({
       model:
         // process.env.OPENAI_MODEL ||
-        "unsloth:DeepSeek-R1-Distill-Qwen-1.5B-GGUF:DeepSeek-R1-Distill-Qwen-1.5B-Q2_K.gguf",
+        "unsloth:Llama-3.2-3B-Instruct-GGUF:Llama-3.2-3B-Instruct-Q4_K_M.gguf",
       messages: [
         {
           role: "system",

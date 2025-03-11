@@ -21,7 +21,7 @@ Aplicación de chat inteligente con capacidades de IA utilizando LangChain, base
 | --------------------------- | -------------- | ------------------------------ |
 | 1. Sistema de Autenticación | ✅ Completado  | Login con JWT y OAuth 2.0      |
 | 2. Núcleo de IA             | 🚧 En Progreso | Integración LangChain + Cortex |
-| 3. Diseño de Interfaces     | ⏳ 30%         | Sistema de Chat Responsivo     |
+| 3. Diseño de Interfaces     | 🚧 En Progreso | Sistema de Chat Responsivo     |
 | 4. Deployment               | 🗓️ Pendiente   | Configuración Vercel           |
 
 ## 📅 Cronograma
